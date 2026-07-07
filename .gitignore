@@ -1,12 +1,33 @@
+# Secrets / local config
+.env
+.env.*
+!.env.example
+*.spc.local
+**/config/*.spc.local
+
+# Local dev-aid scripts (not shipped). CI-critical scripts live in ci/ (tracked).
+scripts/
+
 # macOS
 .DS_Store
+.AppleDouble
+.LSOverride
 ._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Editors
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
 
 # Powerpipe / Steampipe local state
 .powerpipe/
 .steampipe/
-
-# Editors
-.idea/
-.vscode/
-*.swp
