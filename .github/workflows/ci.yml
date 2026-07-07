@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: mod validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Powerpipe
+        run: |
+          curl -sSL https://powerpipe.io/install/powerpipe.sh | sudo -E bash
+
+      # `powerpipe mod list` parses and validates every .pp file (mod block,
+      # benchmarks, controls, dashboards, variables) without needing a live
+      # Steampipe data source — it catches HCL syntax and structure errors.
+      - name: Validate mod HCL
+        run: powerpipe mod list
+
+      # Same credential/secret guard the pre-commit hook runs, minus the
+      # powerpipe-connection parse (covered above). GitHub does its own secret
+      # scanning, so trufflehog absence is fine.
+      - name: Credential check
+        run: |
+          if git grep -nI 'tpuf_[A-Za-z0-9]\{20,\}' -- . ; then
+            echo "::error::a turbopuffer API key (tpuf_...) appears in the tree"
+            exit 1
+          fi
+          if git ls-files | grep -E '(^|/)\.env($|\.)|\.pem$|\.p12$|id_rsa'; then
+            echo "::error::credential-shaped files present"
+            exit 1
+          fi
+          echo "no credentials in tree"
