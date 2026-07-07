@@ -91,8 +91,16 @@ query "tpuf_detail_rows" {
 }
 
 query "tpuf_detail_size" {
+  # Auto-scale up through PB so large namespaces read correctly.
   sql = <<-EOQ
-    select round(approx_logical_bytes / 1073741824.0, 2) as "GB"
+    select
+      case
+        when approx_logical_bytes >= 1125899906842624 then round(approx_logical_bytes / 1125899906842624.0, 2) || ' PB'
+        when approx_logical_bytes >= 1099511627776    then round(approx_logical_bytes / 1099511627776.0, 2) || ' TB'
+        when approx_logical_bytes >= 1073741824       then round(approx_logical_bytes / 1073741824.0, 2) || ' GB'
+        when approx_logical_bytes >= 1048576          then round(approx_logical_bytes / 1048576.0, 2) || ' MB'
+        else coalesce(approx_logical_bytes, 0) || ' B'
+      end as "Logical Size"
     from turbopuffer_namespace
     where id = $1;
   EOQ

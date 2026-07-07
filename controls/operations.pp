@@ -77,6 +77,9 @@ control "ops_oversized_namespaces" {
     default = var.max_namespace_gb
   }
 
+    # Threshold is expressed in GB (the config unit); the comparison is exact
+    # bigint math and is safe to PB scale. The displayed size auto-scales up
+    # through PB so the reason stays readable for petabyte namespaces.
   sql = <<-EOQ
     select
       id as resource,
@@ -86,8 +89,20 @@ control "ops_oversized_namespaces" {
       end as status,
       case
         when approx_logical_bytes <= $1::bigint * 1073741824
-          then id || ' is ' || round(approx_logical_bytes / 1073741824.0, 1) || ' GB.'
-        else id || ' is ' || round(approx_logical_bytes / 1073741824.0, 1) || ' GB (threshold ' || $1 || ' GB) — review blast radius.'
+          then id || ' is ' || (
+            case
+              when approx_logical_bytes >= 1125899906842624 then round(approx_logical_bytes / 1125899906842624.0, 2) || ' PB'
+              when approx_logical_bytes >= 1099511627776    then round(approx_logical_bytes / 1099511627776.0, 2) || ' TB'
+              else round(approx_logical_bytes / 1073741824.0, 1) || ' GB'
+            end
+          ) || '.'
+        else id || ' is ' || (
+            case
+              when approx_logical_bytes >= 1125899906842624 then round(approx_logical_bytes / 1125899906842624.0, 2) || ' PB'
+              when approx_logical_bytes >= 1099511627776    then round(approx_logical_bytes / 1099511627776.0, 2) || ' TB'
+              else round(approx_logical_bytes / 1073741824.0, 1) || ' GB'
+            end
+          ) || ' (threshold ' || $1 || ' GB) — review blast radius.'
       end as reason,
       region
     from turbopuffer_namespace;

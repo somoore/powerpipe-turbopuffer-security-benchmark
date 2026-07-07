@@ -205,9 +205,22 @@ query "tpuf_card_rows" {
 }
 
 query "tpuf_card_size" {
+  # Auto-scale the total logical size to the largest fitting unit up through PB,
+  # so a petabyte-scale estate reads "1.34 PB", not "1340.00 TB".
   sql = <<-EOQ
-    select round(coalesce(sum(approx_logical_bytes), 0) / 1099511627776.0, 2) as "Logical TB"
-    from turbopuffer_namespace;
+    with total as (
+      select coalesce(sum(approx_logical_bytes), 0)::numeric as bytes
+      from turbopuffer_namespace
+    )
+    select
+      case
+        when bytes >= 1125899906842624 then round(bytes / 1125899906842624, 2) || ' PB'
+        when bytes >= 1099511627776    then round(bytes / 1099511627776, 2) || ' TB'
+        when bytes >= 1073741824       then round(bytes / 1073741824, 2) || ' GB'
+        when bytes >= 1048576          then round(bytes / 1048576, 2) || ' MB'
+        else bytes || ' B'
+      end as "Logical Size"
+    from total;
   EOQ
 }
 
@@ -292,7 +305,13 @@ query "tpuf_largest_namespaces" {
       id as "Namespace",
       region as "Region",
       approx_row_count as "Rows",
-      round(approx_logical_bytes / 1073741824.0, 1) as "GB",
+      case
+        when approx_logical_bytes >= 1125899906842624 then round(approx_logical_bytes / 1125899906842624.0, 2) || ' PB'
+        when approx_logical_bytes >= 1099511627776    then round(approx_logical_bytes / 1099511627776.0, 2) || ' TB'
+        when approx_logical_bytes >= 1073741824       then round(approx_logical_bytes / 1073741824.0, 2) || ' GB'
+        when approx_logical_bytes >= 1048576          then round(approx_logical_bytes / 1048576.0, 2) || ' MB'
+        else coalesce(approx_logical_bytes, 0) || ' B'
+      end as "Size",
       case when coalesce(encryption_key_name, '') <> '' then 'CMEK' else 'default' end as "Encryption",
       to_char(updated_at, 'YYYY-MM-DD') as "Last Updated"
     from turbopuffer_namespace
