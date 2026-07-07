@@ -129,7 +129,7 @@ dashboard "turbopuffer_home" {
       query = query.tpuf_freshness_mix
 
       series "namespaces" {
-        point "written in last 90d" {
+        point "updated in last 90d" {
           color = local.puffer_amber
         }
         point "stale (90d+)" {
@@ -257,7 +257,7 @@ query "tpuf_freshness_mix" {
   sql = <<-EOQ
     select
       case when updated_at >= now() - interval '90 days'
-        then 'written in last 90d'
+        then 'updated in last 90d'
         else 'stale (90d+)'
       end as "Freshness",
       count(*) as namespaces
@@ -294,7 +294,7 @@ query "tpuf_largest_namespaces" {
       approx_row_count as "Rows",
       round(approx_logical_bytes / 1073741824.0, 1) as "GB",
       case when coalesce(encryption_key_name, '') <> '' then 'CMEK' else 'default' end as "Encryption",
-      to_char(updated_at, 'YYYY-MM-DD') as "Last Write"
+      to_char(updated_at, 'YYYY-MM-DD') as "Last Updated"
     from turbopuffer_namespace
     order by approx_logical_bytes desc nulls last
     limit 10;

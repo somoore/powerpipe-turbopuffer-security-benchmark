@@ -1,4 +1,14 @@
 # ------------------------------------------------------------------
+# Database
+# ------------------------------------------------------------------
+
+variable "database" {
+  type        = connection.steampipe
+  default     = connection.steampipe.default
+  description = "The Steampipe database this mod queries. Defaults to the local Steampipe service."
+}
+
+# ------------------------------------------------------------------
 # Tenant isolation
 # ------------------------------------------------------------------
 

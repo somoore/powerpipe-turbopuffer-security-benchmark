@@ -1,6 +1,6 @@
 locals {
   common_tags = {
-    project = "turbopuffer_compliance"
+    project = "turbopuffer_security"
     plugin  = "turbopuffer"
   }
 }

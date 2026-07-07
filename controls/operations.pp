@@ -17,6 +17,7 @@ control "ops_stale_namespaces" {
   tags        = merge(local.common_tags, { category = "operations" })
 
   param "stale_days" {
+    description = "Days without a write after which a namespace is flagged as stale."
     default = var.stale_days
   }
 
@@ -44,6 +45,7 @@ control "ops_index_lag" {
   tags        = merge(local.common_tags, { category = "operations" })
 
   param "max_unindexed_bytes" {
+    description = "Unindexed WAL bytes a namespace may have before it is flagged."
     default = var.max_unindexed_bytes
   }
 
@@ -71,6 +73,7 @@ control "ops_oversized_namespaces" {
   tags        = merge(local.common_tags, { category = "operations" })
 
   param "max_namespace_gb" {
+    description = "Logical-size threshold (GB) above which a namespace is flagged for blast-radius review."
     default = var.max_namespace_gb
   }
 
@@ -98,6 +101,7 @@ control "ops_namespace_sprawl" {
   tags        = merge(local.common_tags, { category = "operations" })
 
   param "namespace_count_budget" {
+    description = "Soft budget for total namespace count before sprawl is flagged."
     default = var.namespace_count_budget
   }
 

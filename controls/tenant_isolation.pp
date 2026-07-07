@@ -17,9 +17,11 @@ control "tenant_isolation_acl_attributes_present" {
   tags        = merge(local.common_tags, { category = "tenant_isolation" })
 
   param "required_acl_attributes" {
+    description = "Attributes every multi-tenant namespace must define and keep filterable."
     default = var.required_acl_attributes
   }
   param "tenant_namespace_pattern" {
+    description = "Regex selecting namespaces subject to tenant-isolation controls."
     default = var.tenant_namespace_pattern
   }
 
@@ -65,9 +67,11 @@ control "tenant_isolation_acl_attributes_filterable" {
   tags        = merge(local.common_tags, { category = "tenant_isolation" })
 
   param "required_acl_attributes" {
+    description = "Attributes every multi-tenant namespace must define and keep filterable."
     default = var.required_acl_attributes
   }
   param "tenant_namespace_pattern" {
+    description = "Regex selecting namespaces subject to tenant-isolation controls."
     default = var.tenant_namespace_pattern
   }
 
@@ -96,6 +100,7 @@ control "tenant_isolation_namespace_naming" {
   tags        = merge(local.common_tags, { category = "tenant_isolation" })
 
   param "namespace_naming_pattern" {
+    description = "Regex namespaces must match as a naming-convention control."
     default = var.namespace_naming_pattern
   }
 
@@ -119,9 +124,11 @@ control "tenant_isolation_canary_document_present" {
   tags        = merge(local.common_tags, { category = "tenant_isolation" })
 
   param "canary_document_id" {
+    description = "ID of a honeytoken document expected in every tenant namespace."
     default = var.canary_document_id
   }
   param "tenant_namespace_pattern" {
+    description = "Regex selecting namespaces subject to tenant-isolation controls."
     default = var.tenant_namespace_pattern
   }
 

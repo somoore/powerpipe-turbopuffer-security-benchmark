@@ -17,6 +17,7 @@ control "hygiene_sensitive_attribute_names" {
   tags        = merge(local.common_tags, { category = "schema_hygiene" })
 
   param "sensitive_attribute_pattern" {
+    description = "Case-insensitive regex flagging sensitive attribute names."
     default = var.sensitive_attribute_pattern
   }
 
@@ -40,6 +41,7 @@ control "hygiene_sensitive_attributes_not_search_indexed" {
   tags        = merge(local.common_tags, { category = "schema_hygiene" })
 
   param "sensitive_attribute_pattern" {
+    description = "Case-insensitive regex flagging sensitive attribute names."
     default = var.sensitive_attribute_pattern
   }
 
@@ -74,6 +76,7 @@ control "hygiene_schema_drift_across_environments" {
   tags        = merge(local.common_tags, { category = "schema_hygiene" })
 
   param "environment_prefixes" {
+    description = "Environment prefixes compared by the schema-drift control."
     default = var.environment_prefixes
   }
 
@@ -121,6 +124,7 @@ control "hygiene_empty_namespaces" {
   tags        = merge(local.common_tags, { category = "schema_hygiene" })
 
   param "empty_namespace_min_age_days" {
+    description = "Age (days) above which an empty namespace is flagged for cleanup."
     default = var.empty_namespace_min_age_days
   }
 

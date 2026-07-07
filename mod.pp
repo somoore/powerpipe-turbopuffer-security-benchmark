@@ -1,4 +1,5 @@
-mod "turbopuffer_compliance" {
+mod "turbopuffer_security" {
+  database    = var.database
   title       = "turbopuffer Security & Compliance Benchmark"
   description = "Security posture, tenant-isolation, data-residency, encryption and hygiene checks for turbopuffer namespaces. Runs against the steampipe-plugin-turbopuffer tables. Unofficial community project; not affiliated with turbopuffer inc."
   color       = "#FB915F"

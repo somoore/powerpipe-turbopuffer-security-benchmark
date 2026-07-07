@@ -15,6 +15,7 @@ control "encryption_cmek_on_sensitive_namespaces" {
   tags        = merge(local.common_tags, { category = "encryption" })
 
   param "cmek_required_pattern" {
+    description = "Regex selecting namespaces that must use customer-managed encryption keys."
     default = var.cmek_required_pattern
   }
 
@@ -43,6 +44,7 @@ control "encryption_cmek_keys_approved" {
   tags        = merge(local.common_tags, { category = "encryption" })
 
   param "approved_cmek_keys" {
+    description = "Allow-list of approved CMEK key resource names."
     default = var.approved_cmek_keys
   }
 

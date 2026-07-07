@@ -15,6 +15,7 @@ control "residency_approved_regions_only" {
   tags        = merge(local.common_tags, { category = "data_residency" })
 
   param "approved_regions" {
+    description = "turbopuffer regions approved for any data."
     default = var.approved_regions
   }
 
@@ -42,9 +43,11 @@ control "residency_eu_namespaces_in_eu_regions" {
   tags        = merge(local.common_tags, { category = "data_residency" })
 
   param "eu_namespace_pattern" {
+    description = "Regex identifying namespaces that hold EU-resident data."
     default = var.eu_namespace_pattern
   }
   param "eu_region_pattern" {
+    description = "Regex a region ID must match to count as an EU region."
     default = var.eu_region_pattern
   }
 
