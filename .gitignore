@@ -1,0 +1,12 @@
+# macOS
+.DS_Store
+._*
+
+# Powerpipe / Steampipe local state
+.powerpipe/
+.steampipe/
+
+# Editors
+.idea/
+.vscode/
+*.swp
