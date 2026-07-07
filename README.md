@@ -4,6 +4,8 @@ Security posture management for [turbopuffer](https://turbopuffer.com) — a Ste
 
 > Unofficial community project. Not affiliated with or endorsed by turbopuffer inc. All read-only.
 
+![turbopuffer Security Benchmark](docs/images/benchmark.png)
+
 ```
 ┌─────────────────────┐     GET /v1/namespaces            ┌──────────────────┐
 │  Powerpipe          │     GET /v2/namespaces/:ns/meta   │  turbopuffer     │
