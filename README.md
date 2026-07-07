@@ -1,18 +1,17 @@
-# turbopuffer Security Benchmark
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/turbopuffer-lockup-dark.svg">
+  <img alt="turbopuffer" src="docs/images/turbopuffer-lockup-light.svg" width="360">
+</picture>
 
-Security posture management for [turbopuffer](https://turbopuffer.com) — a Steampipe plugin that turns your namespaces into SQL, and a Powerpipe mod that runs 16 security controls over them.
+# turbopuffer Security Benchmark Mod for Powerpipe
+
+Run individual tenant-isolation, data-residency, encryption, schema-hygiene and operations controls — or the full security benchmark — across your [turbopuffer](https://turbopuffer.com) namespaces using [Powerpipe](https://powerpipe.io) and [Steampipe](https://steampipe.io).
 
 > Unofficial community project. Not affiliated with or endorsed by turbopuffer inc. All read-only.
 
-![turbopuffer Security Benchmark](docs/images/benchmark.png)
+Run checks in a dashboard:
 
-```
-┌─────────────────────┐     GET /v1/namespaces            ┌──────────────────┐
-│  Powerpipe          │     GET /v2/namespaces/:ns/meta   │  turbopuffer     │
-│  benchmark + dash   │──▶ Steampipe plugin ─────────────▶│  (per region)    │
-│  (16 controls, HCL) │     POST /v2/namespaces/:ns/query │                  │
-└─────────────────────┘     (canary lookups only)         └──────────────────┘
-```
+![turbopuffer Security Benchmark dashboard](docs/images/benchmark.png)
 
 ## Why
 
@@ -39,65 +38,108 @@ turbopuffer's own permissions documentation is explicit: row/document-level acce
 | 15 | `ops_oversized_namespaces` | medium | Single-namespace blast radius under threshold |
 | 16 | `ops_namespace_sprawl` | low | Total namespace count within budget |
 
-Everything is tunable in `powerpipe-turbopuffer-security-benchmark/variables.pp`.
+Everything is tunable in `variables.pp`.
 
-## Quick start
+## Getting Started
+
+### Installation
+
+Install [Powerpipe](https://powerpipe.io/downloads), or use Brew:
 
 ```bash
-# 1. Build and install the plugin locally
-cd steampipe-plugin-turbopuffer
-go mod tidy && make install   # or: go build -o ~/.steampipe/plugins/local/turbopuffer/turbopuffer.plugin
-
-# 2. Configure the connection
-cp config/turbopuffer.spc ~/.steampipe/config/
-$EDITOR ~/.steampipe/config/turbopuffer.spc   # api_key + regions
-
-# 3. Kick the tires
-steampipe query "select id, region, approx_row_count, encryption_mode from turbopuffer_namespace"
-
-# 4. Run the benchmark
-cd ../powerpipe-turbopuffer-security-benchmark
-powerpipe benchmark run turbopuffer_security \
-  --var 'required_acl_attributes=["tenant_id","user_id"]' \
-  --var 'approved_regions=["gcp-us-central1","aws-eu-central-1"]'
-
-# 5. Or the live dashboard
-powerpipe server   # open http://localhost:9033
+brew install turbot/tap/powerpipe
 ```
 
-## Tables
+This mod requires [Steampipe](https://steampipe.io) with the [turbopuffer plugin](https://github.com/somoore/steampipe-plugin-turbopuffer) as the data source. Install Steampipe (https://steampipe.io/downloads), or use Brew, then install the plugin:
+
+```bash
+brew install turbot/tap/steampipe
+steampipe plugin install somoore/turbopuffer
+```
+
+Configure your connection with a turbopuffer API key and the regions to scan (see the [plugin docs](https://github.com/somoore/steampipe-plugin-turbopuffer)):
+
+```bash
+cp config/turbopuffer.spc ~/.steampipe/config/turbopuffer.spc
+$EDITOR ~/.steampipe/config/turbopuffer.spc   # api_key + regions
+```
+
+Finally, install the mod:
+
+```bash
+mkdir dashboards
+cd dashboards
+powerpipe mod init
+powerpipe mod install github.com/somoore/powerpipe-turbopuffer-security-benchmark
+```
+
+### Browsing Dashboards
+
+Start Steampipe as the data source:
+
+```bash
+steampipe service start
+```
+
+Start the dashboard server:
+
+```bash
+powerpipe server
+```
+
+Browse and view your dashboards at **http://localhost:9033**.
+
+Two branded dashboards ship with the mod:
+
+- **turbopuffer: Security Posture** — box-drawn hero and Step 1/2/3 panels echoing the onboarding page, posture cards that flip coral on alert, and a Largest Namespaces table that drills into…
+- **turbopuffer: Namespace Detail** — a namespace selector, size/freshness/encryption cards, a **Tenant Isolation: ready / NOT enforceable** verdict card (required ACL attributes present *and* filterable), and the full attribute schema with search-amplification flags.
+
+### Running Checks in Your Terminal
+
+Instead of running benchmarks in a dashboard, you can run them in your terminal with the `powerpipe benchmark` command:
+
+List available benchmarks:
+
+```bash
+powerpipe benchmark list
+```
+
+Run the benchmark:
+
+```bash
+powerpipe benchmark run turbopuffer_security \
+  --var 'required_acl_attributes=["tenant_id"]' \
+  --var 'approved_regions=["gcp-us-central1"]'
+```
+
+Different output formats are also available — for more information see [Output Formats](https://powerpipe.io/docs/reference/cli/benchmark#output-formats).
+
+## The data source
+
+This mod queries the tables exposed by the [turbopuffer Steampipe plugin](https://github.com/somoore/steampipe-plugin-turbopuffer):
 
 | Table | One row per | Notable columns |
 |-------|-------------|-----------------|
-| `turbopuffer_namespace` | namespace × region | `approx_row_count`, `approx_logical_bytes`, `created_at`, `updated_at`, `encryption_mode`, `encryption_key_name`, `schema` |
+| `turbopuffer_namespace` | namespace × region | `approx_row_count`, `approx_logical_bytes`, `created_at`, `updated_at`, `encryption_mode`, `encryption_key_name`, `index_status`, `schema` |
 | `turbopuffer_namespace_attribute` | schema attribute | `type`, `filterable`, `full_text_search`, `regex`, `glob`, `fuzzy`, `vector_index`, `sparse_vector_index` |
-| `turbopuffer_document` | document (requires `namespace` qual) | `id`, `attributes` — vectors always excluded; built for canary lookups and small samples, not export |
-| `turbopuffer_namespace_recall` | recall evaluation (requires `namespace` qual) | `avg_recall`, `avg_ann_count`, `avg_exhaustive_count` — index-integrity signal; runs real searches, costs money |
+| `turbopuffer_document` | document (requires `namespace` qual) | `id`, `attributes` — vectors always excluded; built for canary lookups, not export |
+| `turbopuffer_namespace_recall` | recall evaluation (requires `namespace` qual) | `avg_recall`, `avg_ann_count`, `avg_exhaustive_count` — index-integrity signal |
 | `turbopuffer_region` | configured region | `region`, `endpoint` — join anchor for residency queries |
 
-The plugin follows full Steampipe Hub conventions: `docs/index.md` + per-table example docs (what the Hub renders), Apache-2.0 `LICENSE`, `.goreleaser.yml` for cross-platform release builds, and resilience defaults (404s ignored as skips, 429/5xx retried with backoff). Standards conformance (naming, descriptions, column order, docs, coding) is enforced by `make test` and a pre-commit hook.
-
-Because it's all SQL in Steampipe, these join against the other 150+ plugins: put turbopuffer residency next to `aws_s3_bucket` residency in one compliance report, or join namespaces against a `tenants.csv` (CSV plugin) to catch orphaned tenants.
-
-## Dashboards (in turbopuffer's visual language)
-
-Powerpipe mods can't inject CSS or custom fonts — but turbopuffer's aesthetic is monospace frames, and code fences render true monospace. So the branding is real, not cosplay:
-
-- **turbopuffer: Security Posture** (`turbopuffer_home`) — box-drawn hero and "Step 1/2/3" panels echoing the onboarding page, posture cards that flip coral on alert, amber/sand/ink palette on every chart, and a Largest Namespaces table that drills into…
-- **turbopuffer: Namespace Detail** (`turbopuffer_namespace_detail`) — a select input, size/freshness/encryption cards, a **Tenant Isolation: ready / NOT enforceable** verdict card (required ACL attributes present *and* filterable), and the full attribute schema with search-amplification flags.
-
-For a pixel-faithful branded artifact (their cream background, their exact type), the path is `powerpipe benchmark run --export html` with a custom template — on the roadmap below.
+Because it's all SQL in Steampipe, these join against the other 150+ plugins: put turbopuffer residency next to `aws_s3_bucket` residency in one report, or join namespaces against a `tenants.csv` to catch orphaned tenants.
 
 ## Grounding & honesty notes
 
-- Endpoint paths and response fields were **verified against the official `turbopuffer-go/v2` client and the [turbopuffer OpenAPI spec](https://github.com/turbopuffer/turbopuffer-openapi)**, then confirmed against a live account (`GET /v1/namespaces`, `GET /v2/namespaces/:ns/metadata` → `approx_row_count`, `approx_logical_bytes`, `created_at`, `updated_at`, `encryption{mode,key_name}`, `index{status,unindexed_bytes}`, `schema`; `POST /v2/namespaces/:ns/query`). The metadata response is what makes CMEK, staleness, and index-lag controls real rather than aspirational.
-- **Compiled, tested, and run against a live account.** The plugin builds clean, passes its standards test suite, and the benchmark runs end-to-end (0 errors) against seeded live data.
-- **The control-plane gap**: turbopuffer's public API is data-plane only. API keys, their permissions, org membership and billing are dashboard-only. That's why there's no `turbopuffer_api_key` table — and it's the partnership conversation to have with turbopuffer ("give us a management API"). Track what you can't check; that list is the roadmap.
-- Metadata is fetched once per namespace (concurrency-capped, cached by Steampipe across a benchmark run). A 1,000-namespace org costs ~1,001 GET requests per scan.
+- Endpoint paths and response fields were **verified against the official `turbopuffer-go/v2` client and the [turbopuffer OpenAPI spec](https://github.com/turbopuffer/turbopuffer-openapi)**, then confirmed against a live account. The metadata response is what makes CMEK, staleness, and index-lag controls real rather than aspirational.
+- **Compiled, tested, and run against a live account** (0 errors against seeded live data, load-tested to 1,200+ namespaces).
+- **The control-plane gap**: turbopuffer's public API is data-plane only. API keys, permissions, org membership and billing are dashboard-only — that's why there's no `turbopuffer_api_key` table. Track what you can't check; that list is the roadmap.
 
-## Roadmap
+## Open Source & Contributing
 
-1. **Now (this repo):** read-only posture scan — the ten-minute scary report.
-2. **Next:** companion content scanner (PII / secrets / stored-prompt-injection detection over sampled documents) writing findings into a table this mod benchmarks alongside live data.
-3. **Then:** retrospective detection over audit logs (Tailpipe) when/if log export lands; alerting on canary-document retrieval.
-4. **The product:** the data-path gateway — per-user filter injection, short-lived scoped credentials, tenant-isolation probes, exfiltration-shaped-query detection. The plugin audits the preconditions; the gateway enforces them.
+This repository is published under the [Apache 2.0 license](https://www.apache.org/licenses/LICENSE-2.0). [Steampipe](https://steampipe.io) and [Powerpipe](https://powerpipe.io) are products produced by [Turbot HQ, Inc](https://turbot.com); this mod is an independent community project and is not affiliated with Turbot or turbopuffer inc.
+
+turbopuffer logos are used under turbopuffer's [brand guidelines](https://turbopuffer.com/press).
+
+## Get Involved
+
+**[Join #powerpipe on Slack →](https://turbot.com/community/join)**
