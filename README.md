@@ -50,21 +50,36 @@ Install [Powerpipe](https://powerpipe.io/downloads), or use Brew:
 brew install turbot/tap/powerpipe
 ```
 
-This mod requires [Steampipe](https://steampipe.io) with the [turbopuffer plugin](https://github.com/somoore/steampipe-plugin-turbopuffer) as the data source. Install Steampipe (https://steampipe.io/downloads), or use Brew, then install the plugin:
+This mod requires [Steampipe](https://steampipe.io) with the [turbopuffer plugin](https://github.com/somoore/steampipe-plugin-turbopuffer) as the data source. Install Steampipe (https://steampipe.io/downloads), or use Brew:
 
 ```bash
 brew install turbot/tap/steampipe
-steampipe plugin install somoore/turbopuffer
 ```
 
-Configure your connection with a turbopuffer API key and the regions to scan (see the [plugin docs](https://github.com/somoore/steampipe-plugin-turbopuffer)):
+The plugin has [shipped its first release](https://github.com/somoore/steampipe-plugin-turbopuffer/releases) and is submitted to the Steampipe Hub, but isn't listed there yet — so `steampipe plugin install somoore/turbopuffer` won't resolve until that goes live. Until then, install from the GitHub release:
 
 ```bash
-cp config/turbopuffer.spc ~/.steampipe/config/turbopuffer.spc
-$EDITOR ~/.steampipe/config/turbopuffer.spc   # api_key + regions
+# darwin/arm64 shown; swap for your OS/arch from the releases page
+curl -L -o turbopuffer.plugin.gz \
+  https://github.com/somoore/steampipe-plugin-turbopuffer/releases/latest/download/steampipe-plugin-turbopuffer_darwin_arm64.gz
+gunzip turbopuffer.plugin.gz
+mkdir -p ~/.steampipe/plugins/local/turbopuffer
+mv turbopuffer.plugin ~/.steampipe/plugins/local/turbopuffer/turbopuffer.plugin
+chmod +x ~/.steampipe/plugins/local/turbopuffer/turbopuffer.plugin
 ```
 
-Finally, install the mod:
+Once Hub listing lands, switch back to `steampipe plugin install somoore/turbopuffer` and use `plugin = "somoore/turbopuffer"` in your connection config below.
+
+Configure your connection with a turbopuffer API key and the regions to scan (see the [plugin's sample config](https://github.com/somoore/steampipe-plugin-turbopuffer/blob/main/config/turbopuffer.spc) and [docs](https://github.com/somoore/steampipe-plugin-turbopuffer)):
+
+```bash
+curl -o ~/.steampipe/config/turbopuffer.spc \
+  https://raw.githubusercontent.com/somoore/steampipe-plugin-turbopuffer/main/config/turbopuffer.spc
+$EDITOR ~/.steampipe/config/turbopuffer.spc   # api_key + regions
+# if you installed manually above, also change: plugin = "local/turbopuffer"
+```
+
+Finally, install the mod (only needed if you're pulling this mod into another workspace as a dependency — skip this if you've cloned this repo directly, just `cd` into it):
 
 ```bash
 mkdir dashboards
@@ -72,6 +87,8 @@ cd dashboards
 powerpipe mod init
 powerpipe mod install github.com/somoore/powerpipe-turbopuffer-security-benchmark
 ```
+
+> Until the plugin is listed on the Hub, `mod install` fails with a plugin-version error (manually-installed plugins report their version as `local`, which can't satisfy any `min_version` check). `powerpipe benchmark run` and `powerpipe server` still work fine against a direct clone — that error is only a blocker for the dependency-install path above.
 
 ### Browsing Dashboards
 
