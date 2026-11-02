@@ -71,13 +71,17 @@ dashboard "turbopuffer_namespace_detail" {
 
 # ── Queries ──────────────────────────────────────────────────────────────
 
+# A namespace identity is (id, region): the same id can exist in several
+# regions with different schemas. The selector therefore carries both, joined
+# by "|", and every query below splits it with split_part(). Filtering on id
+# alone merges regions and can report a false "ready".
 query "tpuf_namespace_input" {
   sql = <<-EOQ
     select
       id || '  [' || region || ']' as label,
-      id as value
+      id || '|' || region as value
     from turbopuffer_namespace
-    order by id;
+    order by id, region;
   EOQ
 }
 
@@ -85,7 +89,8 @@ query "tpuf_detail_rows" {
   sql = <<-EOQ
     select approx_row_count as "Rows"
     from turbopuffer_namespace
-    where id = $1;
+    where id = split_part($1, '|', 1)
+      and region = split_part($1, '|', 2);
   EOQ
   param "ns" {}
 }
@@ -102,7 +107,8 @@ query "tpuf_detail_size" {
         else coalesce(approx_logical_bytes, 0) || ' B'
       end as "Logical Size"
     from turbopuffer_namespace
-    where id = $1;
+    where id = split_part($1, '|', 1)
+      and region = split_part($1, '|', 2);
   EOQ
   param "ns" {}
 }
@@ -117,7 +123,8 @@ query "tpuf_detail_last_write" {
         else 'alert'
       end as type
     from turbopuffer_namespace
-    where id = $1;
+    where id = split_part($1, '|', 1)
+      and region = split_part($1, '|', 2);
   EOQ
   param "ns" {}
 }
@@ -132,7 +139,8 @@ query "tpuf_detail_encryption" {
       'Encryption' as label,
       case when coalesce(encryption_key_name, '') <> '' then 'ok' else 'info' end as type
     from turbopuffer_namespace
-    where id = $1;
+    where id = split_part($1, '|', 1)
+      and region = split_part($1, '|', 2);
   EOQ
   param "ns" {}
 }
@@ -148,7 +156,9 @@ query "tpuf_detail_isolation" {
              bool_or(a.filterable) as filterable
       from required r
       left join turbopuffer_namespace_attribute a
-        on a.namespace = $1 and a.name = r.attr
+        on a.namespace = split_part($1, '|', 1)
+       and a.region = split_part($1, '|', 2)
+       and a.name = r.attr
       group by r.attr
     )
     select
@@ -180,7 +190,8 @@ query "tpuf_detail_attributes" {
       case when sparse_vector_index then '✓' else '·' end as "Sparse",
       case when vector_index then '✓' else '·' end as "ANN"
     from turbopuffer_namespace_attribute
-    where namespace = $1
+    where namespace = split_part($1, '|', 1)
+      and region = split_part($1, '|', 2)
     order by name;
   EOQ
   param "ns" {}

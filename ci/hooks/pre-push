@@ -4,7 +4,14 @@
 # in pre-commit can't see secrets in old commits).
 set -euo pipefail
 
-cd "$(git rev-parse --show-toplevel)"
+# Fail closed: `cd ""` succeeds, so an empty result has to be rejected
+# explicitly rather than relying on `cd ... || exit`.
+top=$(git rev-parse --show-toplevel 2>/dev/null) || top=""
+if [ -z "$top" ]; then
+  echo "pre-push: not a git work tree — nothing was checked." >&2
+  exit 1
+fi
+cd "$top"
 
 echo "pre-push: running checks ..."
 if ! ./ci/checks.sh; then

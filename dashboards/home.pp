@@ -168,7 +168,7 @@ dashboard "turbopuffer_home" {
       query = query.tpuf_largest_namespaces
 
       column "Namespace" {
-        href = "${dashboard.turbopuffer_namespace_detail.url_path}?input.namespace_id={{.'Namespace' | @uri}}"
+        href = "${dashboard.turbopuffer_namespace_detail.url_path}?input.namespace_id={{.'Namespace' | @uri}}%7C{{.'Region' | @uri}}"
       }
     }
   }

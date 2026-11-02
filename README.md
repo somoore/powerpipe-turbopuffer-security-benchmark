@@ -56,12 +56,15 @@ This mod requires [Steampipe](https://steampipe.io) with the [turbopuffer plugin
 brew install turbot/tap/steampipe
 ```
 
-The plugin has [shipped its first release](https://github.com/somoore/steampipe-plugin-turbopuffer/releases) and is submitted to the Steampipe Hub, but isn't listed there yet — so `steampipe plugin install somoore/turbopuffer` won't resolve until that goes live. Until then, install from the GitHub release:
+The plugin has [shipped its first release](https://github.com/somoore/steampipe-plugin-turbopuffer/releases) and is submitted to the Steampipe Hub, but isn't listed there yet — so `steampipe plugin install somoore/turbopuffer` won't resolve until that goes live. Until then, install from a **pinned** GitHub release and verify it against the release's published checksum:
 
 ```bash
-# darwin/arm64 shown; swap for your OS/arch from the releases page
-curl -L -o turbopuffer.plugin.gz \
-  https://github.com/somoore/steampipe-plugin-turbopuffer/releases/latest/download/steampipe-plugin-turbopuffer_darwin_arm64.gz
+# darwin/arm64 shown; swap the version, OS/arch and checksum line from the releases page
+VERSION=v0.0.6
+curl -fL -o turbopuffer.plugin.gz \
+  "https://github.com/somoore/steampipe-plugin-turbopuffer/releases/download/${VERSION}/steampipe-plugin-turbopuffer_darwin_arm64.gz"
+# sha256 below is the darwin/arm64 line of ${VERSION}'s SHA256SUMS
+printf '%s  %s\n' 2f875627c5439affe8855438269537c97066cf9845a20aa5cd3ceb75c8670967 turbopuffer.plugin.gz | shasum -a 256 -c -
 gunzip turbopuffer.plugin.gz
 mkdir -p ~/.steampipe/plugins/local/turbopuffer
 mv turbopuffer.plugin ~/.steampipe/plugins/local/turbopuffer/turbopuffer.plugin
@@ -70,14 +73,17 @@ chmod +x ~/.steampipe/plugins/local/turbopuffer/turbopuffer.plugin
 
 Once Hub listing lands, switch back to `steampipe plugin install somoore/turbopuffer` and use `plugin = "somoore/turbopuffer"` in your connection config below.
 
-Configure your connection with a turbopuffer API key and the regions to scan (see the [plugin's sample config](https://github.com/somoore/steampipe-plugin-turbopuffer/blob/main/config/turbopuffer.spc) and [docs](https://github.com/somoore/steampipe-plugin-turbopuffer)):
+Configure your connection with a turbopuffer API key and the regions to scan (see the [plugin's sample config](https://github.com/somoore/steampipe-plugin-turbopuffer/blob/main/config/turbopuffer.spc) and [docs](https://github.com/somoore/steampipe-plugin-turbopuffer)). Fetch the sample from the **same tagged release**, then read it before saving:
 
 ```bash
-curl -o ~/.steampipe/config/turbopuffer.spc \
-  https://raw.githubusercontent.com/somoore/steampipe-plugin-turbopuffer/main/config/turbopuffer.spc
+VERSION=v0.0.6
+curl -fL -o ~/.steampipe/config/turbopuffer.spc \
+  "https://raw.githubusercontent.com/somoore/steampipe-plugin-turbopuffer/${VERSION}/config/turbopuffer.spc"
 $EDITOR ~/.steampipe/config/turbopuffer.spc   # api_key + regions
 # if you installed manually above, also change: plugin = "local/turbopuffer"
 ```
+
+> The sample is a template, not a trusted config: your `api_key` is sent to every endpoint in `regions`, so review both the key and the region list before saving, and only list regions you trust.
 
 Finally, install the mod (only needed if you're pulling this mod into another workspace as a dependency — skip this if you've cloned this repo directly, just `cd` into it):
 
@@ -89,6 +95,8 @@ powerpipe mod install github.com/somoore/powerpipe-turbopuffer-security-benchmar
 ```
 
 > Until the plugin is listed on the Hub, `mod install` fails with a plugin-version error (manually-installed plugins report their version as `local`, which can't satisfy any `min_version` check). `powerpipe benchmark run` and `powerpipe server` still work fine against a direct clone — that error is only a blocker for the dependency-install path above.
+>
+> The repo has no release tag yet, so the command above tracks `main`. Once tags exist, pin one (`...security-benchmark@vX.Y.Z`) and re-pin when you upgrade.
 
 ### Browsing Dashboards
 
@@ -130,6 +138,18 @@ powerpipe benchmark run turbopuffer_security \
 ```
 
 Different output formats are also available — for more information see [Output Formats](https://powerpipe.io/docs/reference/cli/benchmark#output-formats).
+
+### The same checks locally
+
+The repo ships the guard that CI runs (`ci/checks.sh`: mod parse, secret scan, credential-shaped files) as opt-in git hooks. A fresh clone has no hooks until you point git at them:
+
+```bash
+git config core.hooksPath ci/hooks   # enable pre-commit + pre-push
+./ci/checks.sh                        # or run the guard by hand
+./test/checks-guard.sh                # self-test for the secret patterns
+```
+
+Hooks are a convenience and can be skipped with `git commit --no-verify`; CI and branch protection are the real gates.
 
 ## The data source
 

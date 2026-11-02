@@ -9,34 +9,100 @@ on:
 permissions:
   contents: read
 
+env:
+  # Pinned tool versions and their published checksums (from each release's
+  # checksums file). Bump the version and the checksum together.
+  POWERPIPE_VERSION: "1.5.7"
+  POWERPIPE_SHA256: "94e47e08f5eac3a397d6d2822933b181d611b3d55ea5499b53331804b6d9bb9a"
+  GITLEAKS_VERSION: "8.30.1"
+  GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+
 jobs:
   validate:
     name: mod validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install Powerpipe
+      # Pinned release archive + checksum instead of `curl ... | sudo bash`:
+      # a changed or compromised download fails the job rather than running
+      # as root on the runner.
+      - name: Install Powerpipe (pinned)
         run: |
-          curl -sSL https://powerpipe.io/install/powerpipe.sh | sudo -E bash
+          set -euo pipefail
+          archive="powerpipe.linux.amd64.tar.gz"
+          curl --fail --silent --show-error --location \
+            --proto '=https' --tlsv1.2 \
+            --output "$RUNNER_TEMP/$archive" \
+            "https://github.com/turbot/powerpipe/releases/download/v${POWERPIPE_VERSION}/${archive}"
+          printf '%s  %s\n' "$POWERPIPE_SHA256" "$RUNNER_TEMP/$archive" | sha256sum -c -
+          mkdir -p "$HOME/.local/bin"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$HOME/.local/bin" powerpipe
+          chmod +x "$HOME/.local/bin/powerpipe"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      # `powerpipe mod list` parses and validates every .pp file (mod block,
-      # benchmarks, controls, dashboards, variables) without needing a live
-      # Steampipe data source — it catches HCL syntax and structure errors.
+      # The secret scan below uses gitleaks when it is present; pin it so CI
+      # verifies the same way a developer machine does.
+      - name: Install gitleaks (pinned)
+        run: |
+          set -euo pipefail
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl --fail --silent --show-error --location \
+            --proto '=https' --tlsv1.2 \
+            --output "$RUNNER_TEMP/$archive" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${archive}"
+          printf '%s  %s\n' "$GITLEAKS_SHA256" "$RUNNER_TEMP/$archive" | sha256sum -c -
+          mkdir -p "$HOME/.local/bin"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$HOME/.local/bin" gitleaks
+          chmod +x "$HOME/.local/bin/gitleaks"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      # `powerpipe mod list` only lists the mod: it exits 0 on invalid HCL, so
+      # it cannot gate anything on its own. `benchmark list` loads and
+      # validates every .pp file (controls, dashboards, variables).
       - name: Validate mod HCL
-        run: powerpipe mod list
-
-      # Same credential/secret guard the pre-commit hook runs, minus the
-      # powerpipe-connection parse (covered above). GitHub does its own secret
-      # scanning, so trufflehog absence is fine.
-      - name: Credential check
         run: |
-          if git grep -nI 'tpuf_[A-Za-z0-9]\{20,\}' -- . ; then
-            echo "::error::a turbopuffer API key (tpuf_...) appears in the tree"
-            exit 1
-          fi
-          if git ls-files | grep -E '(^|/)\.env($|\.)|\.pem$|\.p12$|id_rsa'; then
-            echo "::error::credential-shaped files present"
-            exit 1
-          fi
-          echo "no credentials in tree"
+          powerpipe mod list
+          powerpipe benchmark list
+
+      - name: Lint shell scripts
+        run: shellcheck ci/checks.sh ci/hooks/pre-commit ci/hooks/pre-push
+
+      # Single source of truth: run the same guard the hooks run, so the CI
+      # and local pattern sets cannot drift apart.
+      - name: Credential check
+        run: ./ci/checks.sh
+
+      - name: Secret guard self-test
+        run: ./test/checks-guard.sh
+
+  controls:
+    name: control fixtures
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: qa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DSN: postgresql://postgres:postgres@localhost:5432/qa
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Load fixture schema
+        run: psql "$DSN" -X -q -v ON_ERROR_STOP=1 -f test/fixture.sql
+
+      # Executes all 16 control SQL blocks and the namespace-detail queries
+      # against the fixture. No turbopuffer credentials, no network egress.
+      - name: Run control and dashboard fixtures
+        run: |
+          python3 test/run_controls.py --mod . --dsn "$DSN"
+          python3 test/run_dashboards.py --mod . --dsn "$DSN"

@@ -2,23 +2,31 @@ name: Dependabot auto-merge
 
 # Auto-merge Dependabot PRs for patch + minor bumps once CI (the "mod
 # validation" check) passes. Major bumps are left for manual review.
+#
+# Kept on `pull_request` (never `pull_request_target`): PRs from forks get a
+# read-only token, and `github.actor` is server-set, so the actor gate cannot
+# be spoofed.
 
 on: pull_request
 
-permissions:
-  contents: write
-  pull-requests: write
+# Deny by default; the job grants only what auto-merge needs. `contents: write`
+# is deliberately absent: enabling auto-merge is a pull-request permission, and
+# GitHub performs the merge itself once the required checks pass.
+permissions: {}
 
 jobs:
   auto-merge:
     if: github.actor == 'dependabot[bot]'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Fetch Dependabot metadata
         id: meta
-        uses: dependabot/fetch-metadata@v3
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+        # v3.1.0 — pinned to a commit SHA so a repointed tag cannot inherit
+        # this job's token.
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
 
       - name: Enable auto-merge for patch/minor updates
         if: steps.meta.outputs.update-type == 'version-update:semver-patch' || steps.meta.outputs.update-type == 'version-update:semver-minor'

@@ -4,3 +4,8 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    open-pull-requests-limit: 5
+    # Do not adopt an action release the hour it is published: a compromised
+    # release gets a week of public scrutiny before auto-merge can land it.
+    cooldown:
+      default-days: 7
